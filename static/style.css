@@ -188,6 +188,22 @@ main {
   text-align: center;
 }
 
+/* ── Section headings (ALL mode) ── */
+.section-block {
+  margin-bottom: 24px;
+}
+
+.section-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2b96f;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 6px 0 4px;
+  border-bottom: 1px solid #0f3460;
+  margin-bottom: 4px;
+}
+
 /* ── Table ── */
 table {
   border-collapse: collapse;

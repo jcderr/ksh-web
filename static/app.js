@@ -8,7 +8,7 @@ const state = {
   biome: '',
   expId: '',
   sitKey: '',
-  incompleteOnly: false,
+  filter: 'all',  // 'all' | 'incomplete' | 'complete'
 };
 
 // ── Selector population ──────────────────────────────────────────────────────
@@ -26,10 +26,10 @@ function populateBiomeSelector() {
   const body = KSH.bodies.find(b => b.name === state.body);
   const sel = document.getElementById('sel-biome-name');
   const biomes = body?.biomes ?? [];
-  sel.innerHTML = biomes.map(bm =>
+  sel.innerHTML = '<option value="ALL">(ALL)</option>' + biomes.map(bm =>
     `<option value="${escHtml(bm.name)}">${escHtml(bm.name)}</option>`
   ).join('');
-  state.biome = biomes[0]?.name ?? '';
+  state.biome = 'ALL';
 }
 
 // ── View switching ───────────────────────────────────────────────────────────
@@ -75,42 +75,56 @@ function buildTable(cols, rows, colClass) {
   </table>`;
 }
 
+function applyFilter(rows) {
+  if (state.filter === 'incomplete') return rows.filter(r => r.cells.some(c => !c));
+  if (state.filter === 'complete')   return rows.filter(r => r.cells.every(c => c));
+  return rows;
+}
+
+function renderSection(heading, content) {
+  return `<div class="section-block"><h3 class="section-heading">${escHtml(heading)}</h3>${content}</div>`;
+}
+
 // ── Renderers ────────────────────────────────────────────────────────────────
+
+function renderBiomeTable(biome) {
+  const cols = KSH.situations.map(s => ({ label: KSH.situation_labels[s] }));
+  let rows = biome.experiments.map(exp => ({
+    label: exp.title,
+    cells: KSH.situations.map(s => exp.situations.includes(s)),
+  }));
+  rows = applyFilter(rows);
+  if (rows.length === 0) return null;
+  return buildTable(cols, rows, 'sit-col');
+}
 
 function renderBiomeView() {
   const body = KSH.bodies.find(b => b.name === state.body);
   if (!body) return '<p class="empty-state">Select a body above.</p>';
 
+  if (state.biome === 'ALL') {
+    const sections = body.biomes.map(bm => {
+      const table = renderBiomeTable(bm);
+      return table ? renderSection(bm.name, table) : null;
+    }).filter(Boolean);
+    return sections.length
+      ? sections.join('')
+      : '<p class="empty-state">All experiments complete here!</p>';
+  }
+
   const biome = body.biomes.find(bm => bm.name === state.biome);
   if (!biome) return '<p class="empty-state">Select a biome above.</p>';
 
-  const cols = KSH.situations.map(s => ({ label: KSH.situation_labels[s] }));
-
-  let rows = biome.experiments.map(exp => ({
-    label: exp.title,
-    cells: KSH.situations.map(s => exp.situations.includes(s)),
-  }));
-
-  if (state.incompleteOnly) {
-    rows = rows.filter(r => r.cells.some(c => !c));
-  }
-
-  if (rows.length === 0) {
-    return '<p class="empty-state">All experiments complete here!</p>';
-  }
-
-  return buildTable(cols, rows, 'sit-col');
+  const table = renderBiomeTable(biome);
+  return table ?? '<p class="empty-state">All experiments complete here!</p>';
 }
 
-function renderExperimentView() {
-  if (!state.expId) return '<p class="empty-state">Select an experiment above.</p>';
-
+function renderExperimentTable(expId) {
   const cols = KSH.situations.map(s => ({ label: KSH.situation_labels[s] }));
   let rows = [];
-
   for (const body of KSH.bodies) {
     for (const biome of body.biomes) {
-      const exp = biome.experiments.find(e => e.id === state.expId);
+      const exp = biome.experiments.find(e => e.id === expId);
       if (!exp) continue;
       rows.push({
         label: `${body.name} / ${biome.name}`,
@@ -118,63 +132,87 @@ function renderExperimentView() {
       });
     }
   }
-
-  if (state.incompleteOnly) {
-    rows = rows.filter(r => r.cells.some(c => !c));
-  }
-
-  if (rows.length === 0) {
-    return state.incompleteOnly
-      ? '<p class="empty-state">Nothing incomplete — you\'ve done this everywhere!</p>'
-      : '<p class="empty-state">No data for this experiment yet.</p>';
-  }
-
+  rows = applyFilter(rows);
+  if (rows.length === 0) return null;
   return buildTable(cols, rows, 'sit-col');
 }
 
-function renderSituationView() {
-  if (!state.sitKey) return '<p class="empty-state">Select a situation above.</p>';
+function renderExperimentView() {
+  if (!state.expId) return '<p class="empty-state">Select an experiment above.</p>';
 
-  // Columns: experiments done at least once in this situation, anywhere
+  if (state.expId === 'ALL') {
+    const sections = KSH.experiments.map(exp => {
+      const table = renderExperimentTable(exp.id);
+      return table ? renderSection(exp.title, table) : null;
+    }).filter(Boolean);
+    if (!sections.length) {
+      if (state.filter === 'incomplete') return '<p class="empty-state">Nothing incomplete — you\'ve done everything everywhere!</p>';
+      if (state.filter === 'complete')   return '<p class="empty-state">Nothing fully complete yet.</p>';
+      return '<p class="empty-state">No experiment data yet.</p>';
+    }
+    return sections.join('');
+  }
+
+  const table = renderExperimentTable(state.expId);
+  if (!table) {
+    if (state.filter === 'incomplete') return '<p class="empty-state">Nothing incomplete — you\'ve done this everywhere!</p>';
+    if (state.filter === 'complete')   return '<p class="empty-state">Nothing fully complete here yet.</p>';
+    return '<p class="empty-state">No data for this experiment yet.</p>';
+  }
+  return table;
+}
+
+function renderSituationTable(sitKey) {
   const expCols = KSH.experiments.filter(exp => {
     for (const body of KSH.bodies) {
       for (const biome of body.biomes) {
         const e = biome.experiments.find(e => e.id === exp.id);
-        if (e && e.situations.includes(state.sitKey)) return true;
+        if (e && e.situations.includes(sitKey)) return true;
       }
     }
     return false;
   });
+  if (expCols.length === 0) return null;
 
-  if (expCols.length === 0) {
-    return '<p class="empty-state">No experiments done in this situation yet.</p>';
-  }
-
-  // Rows: (body, biome) pairs that have at least one experiment done in this situation
   let rows = [];
   for (const body of KSH.bodies) {
     for (const biome of body.biomes) {
       const cells = expCols.map(expCol => {
         const e = biome.experiments.find(e => e.id === expCol.id);
-        return e ? e.situations.includes(state.sitKey) : false;
+        return e ? e.situations.includes(sitKey) : false;
       });
       if (cells.some(c => c)) {
         rows.push({ label: `${body.name} / ${biome.name}`, cells });
       }
     }
   }
-
-  if (state.incompleteOnly) {
-    rows = rows.filter(r => r.cells.some(c => !c));
-  }
+  rows = applyFilter(rows);
+  if (rows.length === 0) return null;
 
   const cols = expCols.map(e => ({ label: e.title }));
+  return buildTable(cols, rows, 'exp-header');
+}
 
-  if (rows.length === 0) {
-    return '<p class="empty-state">All done for this situation!</p>';
+function renderSituationView() {
+  if (!state.sitKey) return '<p class="empty-state">Select a situation above.</p>';
+
+  if (state.sitKey === 'ALL') {
+    const sections = KSH.situations.map(s => {
+      const table = renderSituationTable(s);
+      return table ? renderSection(KSH.situation_labels[s], table) : null;
+    }).filter(Boolean);
+    return sections.length
+      ? sections.join('')
+      : '<p class="empty-state">All done for all situations!</p>';
   }
 
-  return buildTable(cols, rows, 'exp-header');
+  const table = renderSituationTable(state.sitKey);
+  if (!table) {
+    if (state.filter === 'incomplete') return '<p class="empty-state">All done for this situation!</p>';
+    if (state.filter === 'complete')   return '<p class="empty-state">Nothing fully complete here yet.</p>';
+    return '<p class="empty-state">No experiments done in this situation yet.</p>';
+  }
+  return table;
 }
 
 // ── Main render dispatch ─────────────────────────────────────────────────────
@@ -197,16 +235,16 @@ function init() {
   populateBodySelector();
 
   const expSel = document.getElementById('sel-exp-id');
-  expSel.innerHTML = KSH.experiments.map(e =>
+  expSel.innerHTML = '<option value="ALL">(ALL)</option>' + KSH.experiments.map(e =>
     `<option value="${escHtml(e.id)}">${escHtml(e.title)}</option>`
   ).join('');
-  state.expId = KSH.experiments[0]?.id ?? '';
+  state.expId = 'ALL';
 
   const sitSel = document.getElementById('sel-sit-key');
-  sitSel.innerHTML = KSH.situations.map(s =>
+  sitSel.innerHTML = '<option value="ALL">(ALL)</option>' + KSH.situations.map(s =>
     `<option value="${escHtml(s)}">${escHtml(KSH.situation_labels[s])}</option>`
   ).join('');
-  state.sitKey = KSH.situations[0] ?? '';
+  state.sitKey = 'ALL';
 
   // Tab buttons
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -236,10 +274,14 @@ function init() {
     renderView();
   });
 
-  // Incomplete-only toggle
-  document.getElementById('incomplete-only').addEventListener('change', e => {
-    state.incompleteOnly = e.target.checked;
-    renderView();
+  // Filter buttons (All / Incomplete / Complete)
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.filter = btn.dataset.filter;
+      renderView();
+    });
   });
 
   renderView();
