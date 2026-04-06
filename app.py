@@ -1,3 +1,4 @@
+import configparser
 import json
 import os
 from flask import Flask, render_template, request
@@ -5,6 +6,15 @@ from cfg_parser import CFGReader
 from science_parser import ScienceParser, SITUATIONS, SITUATION_LABELS
 
 app = Flask(__name__)
+
+CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'ksh.cfg')
+
+
+def load_config():
+    config = configparser.ConfigParser()
+    config.read(CONFIG_FILE)
+    save_file = config.get('ksh', 'save_file', fallback=None)
+    return save_file.strip() if save_file else None
 
 
 def bodies_to_json(bodies):
@@ -37,41 +47,48 @@ def bodies_to_json(bodies):
     })
 
 
+def parse_save(file_path):
+    """Parse a save file and return (game_title, science_json, error)."""
+    if not os.path.isfile(file_path):
+        return None, 'null', f'File not found: {file_path}'
+    try:
+        reader = CFGReader(file_path)
+        if reader.root is None:
+            return None, 'null', 'Could not parse file — is this a valid KSP save?'
+        parser = ScienceParser(reader.root)
+        bodies = parser.get_results()
+        if not bodies:
+            return None, 'null', 'No science data found. Have you done any science in this save?'
+        return parser.game_title, bodies_to_json(bodies), None
+    except Exception as e:
+        return None, 'null', f'Parse error: {e}'
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     error = None
     game_title = None
-    file_path = None
-    bodies = []
     science_json = 'null'
+    configured_path = load_config()
 
-    if request.method == 'POST':
+    if configured_path:
+        file_path = configured_path
+        game_title, science_json, error = parse_save(file_path)
+    elif request.method == 'POST':
         file_path = request.form.get('file_path', '').strip()
         if not file_path:
             error = 'Please enter a file path.'
-        elif not os.path.isfile(file_path):
-            error = f'File not found: {file_path}'
         else:
-            try:
-                reader = CFGReader(file_path)
-                if reader.root is None:
-                    error = 'Could not parse file — is this a valid KSP save?'
-                else:
-                    parser = ScienceParser(reader.root)
-                    game_title = parser.game_title
-                    bodies = parser.get_results()
-                    if not bodies:
-                        error = 'No science data found. Have you done any science in this save?'
-                    else:
-                        science_json = bodies_to_json(bodies)
-            except Exception as e:
-                error = f'Parse error: {e}'
+            game_title, science_json, error = parse_save(file_path)
+    else:
+        file_path = None
 
     return render_template(
         'index.html',
         error=error,
         game_title=game_title,
         file_path=file_path,
+        configured_path=configured_path,
         science_json=science_json,
     )
 

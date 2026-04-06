@@ -9,10 +9,13 @@ The original is a Windows-only Delphi desktop app. This version runs as a local 
 ## Features
 
 - Parses KSP `persistent.sfs` save files directly from disk
-- Displays science completions grouped by celestial body → biome → experiment
-- Six situation columns: Landed, Splashed, Fly Low, Fly High, Space Low, Space High
-- Collapsible body and biome sections
-- Filter to focus on a single celestial body
+- Three interactive views for querying your science data:
+  - **By Biome** — "I'm near Desert. What experiments do I still need here?"
+  - **By Experiment** — "I have a thermometer. Where should I use it next?"
+  - **By Situation** — "I'm going to high orbit. What should I bring?"
+- All/Incomplete/Complete filter to focus on what's done, what's left, or what's fully cleared
+- `(ALL)` option in every dropdown to show all entries at once
+- No database, no network access, no writes — read-only
 
 ## Requirements
 

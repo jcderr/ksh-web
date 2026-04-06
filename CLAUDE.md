@@ -15,10 +15,11 @@ No database, no network, no writes. Pure file-in → display-out.
 
 ```
 ksh-web/
-  app.py                Flask app — one route, GET renders form, POST parses and renders results
+  app.py                Flask app — one route, GET renders form, POST parses and passes science_json
   cfg_parser.py         Port of CFGNode + CFGReader + CFGWrapper (Delphi → Python)
   science_parser.py     Port of CFGScienceParser, extended with biome support
-  templates/index.html  Single-page UI with collapsible body/biome sections
+  templates/index.html  Single-page UI shell — data rendered by app.js
+  static/app.js         Three view renderers (biome / experiment / situation) + filter logic
   static/style.css      Dark theme styling
   test/persistent.sfs   Test KSP save file (career mode, early game, Kerbin science)
 ```
@@ -62,12 +63,29 @@ Examples:
 
 Nodes with `sci = 0` are skipped (partial collection, no science gained).
 
+## Data flow
+
+`app.py` parses the save file and serializes the full results to JSON via `bodies_to_json()`, embedding it in the page as `window.KSH_DATA`. All rendering is done client-side by `static/app.js` — the Jinja2 template is just a shell.
+
+The JSON shape:
+```json
+{
+  "situations": [...],
+  "situation_labels": {...},
+  "experiments": [{"id": "...", "title": "..."}],
+  "bodies": [{"name": "...", "biomes": [{"name": "...", "experiments": [...]}]}]
+}
+```
+
+`experiments` is a deduplicated, alphabetically-sorted list of all experiment ids/titles across all bodies, used to populate the By Experiment dropdown.
+
 ## Development notes
 
 - The original Delphi source is in the parent directory (`../`) for reference
 - `cfg_parser.py` closely mirrors the original parse logic; keep that parity
 - `science_parser.py` extends the original by splitting out the biome from the remainder after the situation keyword
 - The `(Global)` biome key is a display convention for biome-less experiments; it sorts first within a body
+- `app.js` contains three table-rendering functions (`renderBiomeTable`, `renderExperimentTable`, `renderSituationTable`) plus ALL-mode wrappers that call `renderSection()` for each item; the `applyFilter()` helper handles the All/Incomplete/Complete filter centrally
 
 ## Permissions for Claude
 

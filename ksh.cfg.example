@@ -1,0 +1,9 @@
+[ksh]
+# Permanently set the KSP save file to load on startup.
+# When set, the file path form is hidden and the save is loaded automatically.
+# Uncomment and set the path below:
+#
+# save_file = /path/to/KSP/saves/GameName/persistent.sfs
+#
+# macOS Steam example:
+# save_file = ~/Library/Application Support/Steam/steamapps/common/Kerbal Space Program/saves/default/persistent.sfs

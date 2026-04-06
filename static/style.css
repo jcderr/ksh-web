@@ -75,6 +75,16 @@ button:hover { background: #1a5276; }
 
 .game-info .label { font-weight: 600; color: #e2b96f; }
 
+.config-info {
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #a0a0b0;
+}
+
+.config-info .label { font-weight: 600; color: #e2b96f; }
+.config-info code { color: #c0c8d8; }
+.config-note { color: #606070; font-style: italic; margin-left: 6px; }
+
 select {
   background: #0d1b2a;
   border: 1px solid #0f3460;

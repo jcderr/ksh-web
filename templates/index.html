@@ -10,6 +10,12 @@
 
 <header>
   <h1>Kerbal Science History</h1>
+  {% if configured_path %}
+  <div class="config-info">
+    <span class="label">Save file:</span> <code>{{ configured_path }}</code>
+    <span class="config-note">(set in ksh.cfg)</span>
+  </div>
+  {% else %}
   <form method="post" id="load-form">
     <div class="form-row">
       <label for="file_path">Save file path:</label>
@@ -20,6 +26,7 @@
       <button type="submit">Load</button>
     </div>
   </form>
+  {% endif %}
 
   {% if game_title %}
   <div class="game-info">
@@ -57,7 +64,7 @@
 
 <main>
   <div id="view-output"></div>
-  {% if not error and not file_path %}
+  {% if not error and not file_path and not configured_path %}
   <div class="splash">
     Enter the path to a KSP <code>persistent.sfs</code> save file above and click Load.
   </div>
