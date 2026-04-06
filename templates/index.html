@@ -14,7 +14,18 @@
   <div class="config-info">
     <span class="label">Save file:</span> <code>{{ configured_path }}</code>
     <span class="config-note">(set in ksh.cfg)</span>
+    <a href="#" class="open-link" id="override-toggle">(open)</a>
   </div>
+  <form method="post" id="override-form" style="display:none">
+    <div class="form-row">
+      <label for="file_path">Load different file:</label>
+      <input type="text" id="file_path" name="file_path"
+             value=""
+             placeholder="/path/to/KSP/saves/GameName/persistent.sfs"
+             spellcheck="false">
+      <button type="submit">Load</button>
+    </div>
+  </form>
   {% else %}
   <form method="post" id="load-form">
     <div class="form-row">
@@ -73,6 +84,17 @@
 
 <script>window.KSH_DATA = {{ science_json | safe }};</script>
 <script src="/static/app.js"></script>
+{% if configured_path %}
+<script>
+  document.getElementById('override-toggle').addEventListener('click', function(e) {
+    e.preventDefault();
+    var form = document.getElementById('override-form');
+    var visible = form.style.display !== 'none';
+    form.style.display = visible ? 'none' : 'block';
+    if (!visible) form.querySelector('input').focus();
+  });
+</script>
+{% endif %}
 
 </body>
 </html>

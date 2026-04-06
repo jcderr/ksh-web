@@ -84,6 +84,8 @@ button:hover { background: #1a5276; }
 .config-info .label { font-weight: 600; color: #e2b96f; }
 .config-info code { color: #c0c8d8; }
 .config-note { color: #606070; font-style: italic; margin-left: 6px; }
+.open-link { color: #6a9fd8; margin-left: 8px; text-decoration: none; }
+.open-link:hover { text-decoration: underline; }
 
 select {
   background: #0d1b2a;
