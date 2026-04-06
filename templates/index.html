@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kerbal Science History</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+  <h1>Kerbal Science History</h1>
+  <form method="post" id="load-form">
+    <div class="form-row">
+      <label for="file_path">Save file path:</label>
+      <input type="text" id="file_path" name="file_path"
+             value="{{ file_path or '' }}"
+             placeholder="/path/to/KSP/saves/GameName/persistent.sfs"
+             spellcheck="false">
+      <button type="submit">Load</button>
+    </div>
+  </form>
+
+  {% if game_title %}
+  <div class="game-info">
+    <span class="label">Game:</span> {{ game_title }}
+  </div>
+  {% endif %}
+
+  {% if bodies %}
+  <div class="controls">
+    <button onclick="expandAll()">Expand All</button>
+    <button onclick="collapseAll()">Collapse All</button>
+    <label for="body-filter">Focus:</label>
+    <select id="body-filter" onchange="filterBody(this.value)">
+      <option value="">All</option>
+      {% for body in bodies %}
+      <option value="{{ body.name }}">{{ body.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endif %}
+</header>
+
+{% if error %}
+<div class="error">{{ error }}</div>
+{% endif %}
+
+{% if bodies %}
+<main>
+  {% for body in bodies %}
+  <details class="body-section" data-body="{{ body.name }}" open>
+    <summary>{{ body.name }}</summary>
+
+    {% for biome in body.biomes %}
+    <details class="biome-section" open>
+      <summary class="biome-summary">{{ biome.name }}</summary>
+      <table>
+        <thead>
+          <tr>
+            <th class="exp-col">Experiment</th>
+            {% for sit in situations %}
+            <th class="sit-col">{{ situation_labels[sit] }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for exp in biome.experiments %}
+          <tr>
+            <td class="exp-name">{{ exp.title }}</td>
+            {% for sit in situations %}
+            <td class="sit-cell {% if sit in exp.situations %}done{% endif %}">
+              {% if sit in exp.situations %}✓{% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </details>
+    {% endfor %}
+
+  </details>
+  {% endfor %}
+</main>
+{% elif not error and not file_path %}
+<div class="splash">
+  Enter the path to a KSP <code>persistent.sfs</code> save file above and click Load.
+</div>
+{% endif %}
+
+<script>
+  function expandAll() {
+    document.querySelectorAll('details').forEach(d => d.open = true);
+  }
+  function collapseAll() {
+    document.querySelectorAll('details').forEach(d => d.open = false);
+  }
+  function filterBody(name) {
+    document.querySelectorAll('details.body-section').forEach(d => {
+      if (!name || d.dataset.body === name) {
+        d.style.display = '';
+        d.open = true;
+      } else {
+        d.style.display = 'none';
+      }
+    });
+  }
+</script>
+
+</body>
+</html>
