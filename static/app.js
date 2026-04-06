@@ -37,7 +37,7 @@ function populateBiomeSelector() {
 function switchView(view) {
   state.view = view;
 
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('.tab-btn:not(.filter-btn)').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.view === view);
   });
 
@@ -107,16 +107,20 @@ function renderBiomeView() {
       const table = renderBiomeTable(bm);
       return table ? renderSection(bm.name, table) : null;
     }).filter(Boolean);
-    return sections.length
-      ? sections.join('')
-      : '<p class="empty-state">All experiments complete here!</p>';
+    if (sections.length) return sections.join('');
+    if (state.filter === 'incomplete') return '<p class="empty-state">No incomplete biomes found — all done here!</p>';
+    if (state.filter === 'complete')   return '<p class="empty-state">No completed biomes found here yet.</p>';
+    return '<p class="empty-state">No experiment data here.</p>';
   }
 
   const biome = body.biomes.find(bm => bm.name === state.biome);
   if (!biome) return '<p class="empty-state">Select a biome above.</p>';
 
   const table = renderBiomeTable(biome);
-  return table ?? '<p class="empty-state">All experiments complete here!</p>';
+  if (table) return table;
+  if (state.filter === 'incomplete') return '<p class="empty-state">No incomplete experiments found — all done here!</p>';
+  if (state.filter === 'complete')   return '<p class="empty-state">No completed experiments found here yet.</p>';
+  return '<p class="empty-state">No experiment data here.</p>';
 }
 
 function renderExperimentTable(expId) {
@@ -146,8 +150,8 @@ function renderExperimentView() {
       return table ? renderSection(exp.title, table) : null;
     }).filter(Boolean);
     if (!sections.length) {
-      if (state.filter === 'incomplete') return '<p class="empty-state">Nothing incomplete — you\'ve done everything everywhere!</p>';
-      if (state.filter === 'complete')   return '<p class="empty-state">Nothing fully complete yet.</p>';
+      if (state.filter === 'incomplete') return '<p class="empty-state">No incomplete experiments found yet.</p>';
+      if (state.filter === 'complete')   return '<p class="empty-state">No completed experiments found yet.</p>';
       return '<p class="empty-state">No experiment data yet.</p>';
     }
     return sections.join('');
@@ -155,8 +159,8 @@ function renderExperimentView() {
 
   const table = renderExperimentTable(state.expId);
   if (!table) {
-    if (state.filter === 'incomplete') return '<p class="empty-state">Nothing incomplete — you\'ve done this everywhere!</p>';
-    if (state.filter === 'complete')   return '<p class="empty-state">Nothing fully complete here yet.</p>';
+    if (state.filter === 'incomplete') return '<p class="empty-state">No incomplete locations found here yet.</p>';
+    if (state.filter === 'complete')   return '<p class="empty-state">No completed locations found here yet.</p>';
     return '<p class="empty-state">No data for this experiment yet.</p>';
   }
   return table;
@@ -201,15 +205,16 @@ function renderSituationView() {
       const table = renderSituationTable(s);
       return table ? renderSection(KSH.situation_labels[s], table) : null;
     }).filter(Boolean);
-    return sections.length
-      ? sections.join('')
-      : '<p class="empty-state">All done for all situations!</p>';
+    if (sections.length) return sections.join('');
+    if (state.filter === 'incomplete') return '<p class="empty-state">No incomplete experiments found — all done everywhere!</p>';
+    if (state.filter === 'complete')   return '<p class="empty-state">No completed experiments found yet.</p>';
+    return '<p class="empty-state">No experiment data yet.</p>';
   }
 
   const table = renderSituationTable(state.sitKey);
   if (!table) {
-    if (state.filter === 'incomplete') return '<p class="empty-state">All done for this situation!</p>';
-    if (state.filter === 'complete')   return '<p class="empty-state">Nothing fully complete here yet.</p>';
+    if (state.filter === 'incomplete') return '<p class="empty-state">No incomplete locations found here yet.</p>';
+    if (state.filter === 'complete')   return '<p class="empty-state">No completed locations found here yet.</p>';
     return '<p class="empty-state">No experiments done in this situation yet.</p>';
   }
   return table;
@@ -246,8 +251,8 @@ function init() {
   ).join('');
   state.sitKey = 'ALL';
 
-  // Tab buttons
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  // Tab buttons (exclude filter buttons which share the tab-btn class)
+  document.querySelectorAll('.tab-btn:not(.filter-btn)').forEach(btn => {
     btn.addEventListener('click', () => switchView(btn.dataset.view));
   });
 
