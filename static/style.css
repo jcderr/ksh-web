@@ -264,7 +264,7 @@ td.sit-cell {
   color: #2a3050;
 }
 
-td.sit-cell::before { content: '–'; }
+td.sit-cell::before { content: '○'; }
 
 td.sit-cell.done {
   background: #1a3320;
@@ -273,3 +273,10 @@ td.sit-cell.done {
 }
 
 td.sit-cell.done::before { content: '✓'; }
+
+td.sit-cell.na-cell {
+  background: #111520;
+  color: #2a2a3a;
+}
+
+td.sit-cell.na-cell::before { content: '⊘'; }

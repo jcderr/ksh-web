@@ -2,6 +2,34 @@
 
 const KSH = window.KSH_DATA;
 
+// Biome/Global/N/A matrix from KSP wiki (B=biome-specific, G=global, N=not available)
+const EXPERIMENT_MASK = {
+  surfaceSample:      { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'N', FlyingHigh:'N', InSpaceLow:'N', InSpaceHigh:'N' },
+  evaReport:          { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'B', FlyingHigh:'G', InSpaceLow:'B', InSpaceHigh:'G' },
+  evaExperiments:     { SrfLanded:'G', SrfSplashed:'N', FlyingLow:'N', FlyingHigh:'N', InSpaceLow:'G', InSpaceHigh:'G' },
+  asteroidSample:     { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'B', FlyingHigh:'G', InSpaceLow:'G', InSpaceHigh:'G' },
+  cometSample:        { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'B', FlyingHigh:'G', InSpaceLow:'G', InSpaceHigh:'G' },
+  crewReport:         { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'B', FlyingHigh:'G', InSpaceLow:'G', InSpaceHigh:'G' },
+  mysteryGoo:         { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'G', FlyingHigh:'G', InSpaceLow:'G', InSpaceHigh:'G' },
+  mobileMaterialsLab: { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'G', FlyingHigh:'G', InSpaceLow:'G', InSpaceHigh:'G' },
+  temperatureScan:    { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'B', FlyingHigh:'G', InSpaceLow:'G', InSpaceHigh:'G' },
+  barometerScan:      { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'G', FlyingHigh:'G', InSpaceLow:'G', InSpaceHigh:'G' },
+  gravityScan:        { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'N', FlyingHigh:'N', InSpaceLow:'B', InSpaceHigh:'B' },
+  seismicScan:        { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'N', FlyingHigh:'N', InSpaceLow:'N', InSpaceHigh:'N' },
+  atmosphereAnalysis: { SrfLanded:'B', SrfSplashed:'N', FlyingLow:'B', FlyingHigh:'B', InSpaceLow:'N', InSpaceHigh:'N' },
+  infraredTelescope:  { SrfLanded:'N', SrfSplashed:'N', FlyingLow:'N', FlyingHigh:'B', InSpaceLow:'N', InSpaceHigh:'G' },
+};
+
+// Returns true (done), false (not done), or null (N/A for this biome+situation combo)
+function cellState(expId, sitKey, biomeName, doneSituations) {
+  const mask = (EXPERIMENT_MASK[expId] ?? {})[sitKey] ?? 'B';
+  if (mask === 'N') return null;
+  const isGlobal = biomeName === '(Global)';
+  if (mask === 'G' && !isGlobal) return null;
+  if (mask === 'B' && isGlobal) return null;
+  return doneSituations.includes(sitKey);
+}
+
 const state = {
   view: 'biome',
   body: '',
@@ -64,8 +92,10 @@ function buildTable(cols, rows, colClass) {
   const thClass = colClass || 'sit-col';
   const head = cols.map(c => `<th class="${thClass}">${escHtml(c.label)}</th>`).join('');
   const body = rows.map(row => {
-    const cells = row.cells.map(done =>
-      `<td class="sit-cell${done ? ' done' : ''}"></td>`
+    const cells = row.cells.map(val =>
+      val === null
+        ? `<td class="sit-cell na-cell"></td>`
+        : `<td class="sit-cell${val ? ' done' : ''}"></td>`
     ).join('');
     return `<tr><td class="row-label">${escHtml(row.label)}</td>${cells}</tr>`;
   }).join('');
@@ -76,9 +106,10 @@ function buildTable(cols, rows, colClass) {
 }
 
 function applyFilter(rows) {
-  if (state.filter === 'incomplete') return rows.filter(r => r.cells.some(c => !c));
-  if (state.filter === 'complete')   return rows.filter(r => r.cells.every(c => c));
-  return rows;
+  const meaningful = rows.filter(r => r.cells.some(c => c !== null));
+  if (state.filter === 'incomplete') return meaningful.filter(r => r.cells.some(c => c === false));
+  if (state.filter === 'complete')   return meaningful.filter(r => r.cells.filter(c => c !== null).every(c => c));
+  return meaningful;
 }
 
 function renderSection(heading, content) {
@@ -91,7 +122,7 @@ function renderBiomeTable(biome) {
   const cols = KSH.situations.map(s => ({ label: KSH.situation_labels[s] }));
   let rows = biome.experiments.map(exp => ({
     label: exp.title,
-    cells: KSH.situations.map(s => exp.situations.includes(s)),
+    cells: KSH.situations.map(s => cellState(exp.id, s, biome.name, exp.situations)),
   }));
   rows = applyFilter(rows);
   if (rows.length === 0) return null;
@@ -129,11 +160,12 @@ function renderExperimentTable(expId) {
   for (const body of KSH.bodies) {
     for (const biome of body.biomes) {
       const exp = biome.experiments.find(e => e.id === expId);
-      if (!exp) continue;
-      rows.push({
-        label: `${body.name} / ${biome.name}`,
-        cells: KSH.situations.map(s => exp.situations.includes(s)),
-      });
+      const cells = KSH.situations.map(s =>
+        cellState(expId, s, biome.name, exp ? exp.situations : [])
+      );
+      if (cells.some(c => c !== null)) {
+        rows.push({ label: `${body.name} / ${biome.name}`, cells });
+      }
     }
   }
   rows = applyFilter(rows);
@@ -183,9 +215,9 @@ function renderSituationTable(sitKey) {
     for (const biome of body.biomes) {
       const cells = expCols.map(expCol => {
         const e = biome.experiments.find(e => e.id === expCol.id);
-        return e ? e.situations.includes(sitKey) : false;
+        return cellState(expCol.id, sitKey, biome.name, e ? e.situations : []);
       });
-      if (cells.some(c => c)) {
+      if (cells.some(c => c !== null)) {
         rows.push({ label: `${body.name} / ${biome.name}`, cells });
       }
     }
