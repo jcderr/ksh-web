@@ -27,86 +27,43 @@
   </div>
   {% endif %}
 
-  {% if bodies %}
-  <div class="controls">
-    <button onclick="expandAll()">Expand All</button>
-    <button onclick="collapseAll()">Collapse All</button>
-    <label for="body-filter">Focus:</label>
-    <select id="body-filter" onchange="filterBody(this.value)">
-      <option value="">All</option>
-      {% for body in bodies %}
-      <option value="{{ body.name }}">{{ body.name }}</option>
-      {% endfor %}
-    </select>
+  <div class="view-controls" id="view-controls" style="display:none">
+    <div class="view-tabs">
+      <button class="tab-btn active" data-view="biome">By Biome</button>
+      <button class="tab-btn" data-view="experiment">By Experiment</button>
+      <button class="tab-btn" data-view="situation">By Situation</button>
+    </div>
+    <div class="selector-group" id="sel-biome">
+      <select id="sel-body"></select>
+      <select id="sel-biome-name"></select>
+    </div>
+    <div class="selector-group hidden" id="sel-experiment">
+      <select id="sel-exp-id"></select>
+    </div>
+    <div class="selector-group hidden" id="sel-situation">
+      <select id="sel-sit-key"></select>
+    </div>
+    <label class="toggle-label">
+      <input type="checkbox" id="incomplete-only"> Incomplete only
+    </label>
   </div>
-  {% endif %}
 </header>
 
 {% if error %}
 <div class="error">{{ error }}</div>
 {% endif %}
 
-{% if bodies %}
 <main>
-  {% for body in bodies %}
-  <details class="body-section" data-body="{{ body.name }}" open>
-    <summary>{{ body.name }}</summary>
-
-    {% for biome in body.biomes %}
-    <details class="biome-section" open>
-      <summary class="biome-summary">{{ biome.name }}</summary>
-      <table>
-        <thead>
-          <tr>
-            <th class="exp-col">Experiment</th>
-            {% for sit in situations %}
-            <th class="sit-col">{{ situation_labels[sit] }}</th>
-            {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for exp in biome.experiments %}
-          <tr>
-            <td class="exp-name">{{ exp.title }}</td>
-            {% for sit in situations %}
-            <td class="sit-cell {% if sit in exp.situations %}done{% endif %}">
-              {% if sit in exp.situations %}✓{% endif %}
-            </td>
-            {% endfor %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </details>
-    {% endfor %}
-
-  </details>
-  {% endfor %}
+  <div id="view-output"></div>
+  {% if not error and not file_path %}
+  <div class="splash">
+    Enter the path to a KSP <code>persistent.sfs</code> save file above and click Load.
+  </div>
+  {% endif %}
 </main>
-{% elif not error and not file_path %}
-<div class="splash">
-  Enter the path to a KSP <code>persistent.sfs</code> save file above and click Load.
-</div>
-{% endif %}
 
-<script>
-  function expandAll() {
-    document.querySelectorAll('details').forEach(d => d.open = true);
-  }
-  function collapseAll() {
-    document.querySelectorAll('details').forEach(d => d.open = false);
-  }
-  function filterBody(name) {
-    document.querySelectorAll('details.body-section').forEach(d => {
-      if (!name || d.dataset.body === name) {
-        d.style.display = '';
-        d.open = true;
-      } else {
-        d.style.display = 'none';
-      }
-    });
-  }
-</script>
+<script>window.KSH_DATA = {{ science_json | safe }};</script>
+<script src="/static/app.js"></script>
 
 </body>
 </html>

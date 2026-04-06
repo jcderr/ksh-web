@@ -75,15 +75,6 @@ button:hover { background: #1a5276; }
 
 .game-info .label { font-weight: 600; color: #e2b96f; }
 
-.controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.controls label { color: #a0a0b0; font-size: 13px; }
-
 select {
   background: #0d1b2a;
   border: 1px solid #0f3460;
@@ -96,6 +87,62 @@ select {
 }
 
 select:focus { border-color: #e2b96f; }
+
+/* ── View Controls ── */
+.view-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.view-tabs {
+  display: flex;
+  gap: 0;
+  border: 1px solid #0f3460;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.tab-btn {
+  border: none;
+  border-radius: 0;
+  border-right: 1px solid #0f3460;
+  background: #0d1b2a;
+  color: #a0b0c8;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tab-btn:last-child { border-right: none; }
+
+.tab-btn:hover { background: #1a2a3a; color: #e0e0e0; }
+
+.tab-btn.active {
+  background: #0f3460;
+  color: #e2b96f;
+  font-weight: 600;
+}
+
+.selector-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.selector-group.hidden { display: none; }
+
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #a0a0b0;
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
 
 /* ── Messages ── */
 .error {
@@ -124,76 +171,25 @@ select:focus { border-color: #e2b96f; }
   color: #a0c0e0;
 }
 
-/* ── Body sections ── */
+/* ── Main / View Output ── */
 main {
   padding: 16px 20px;
-  max-width: 1100px;
 }
 
-details.body-section {
-  margin-bottom: 12px;
-  border: 1px solid #0f3460;
-  border-radius: 6px;
-  overflow: hidden;
+#view-output {
+  max-width: 1200px;
+  overflow-x: auto;
 }
 
-details.body-section > summary {
-  background: #0f3460;
-  color: #e2b96f;
-  padding: 8px 14px;
-  font-weight: 600;
+.empty-state {
+  color: #606080;
   font-size: 14px;
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
-}
-
-details.body-section > summary::-webkit-details-marker { display: none; }
-
-details.body-section > summary::before {
-  content: '▶ ';
-  font-size: 10px;
-  opacity: 0.7;
-  transition: transform 0.15s;
-  display: inline-block;
-}
-
-details.body-section[open] > summary::before {
-  transform: rotate(90deg);
-}
-
-/* ── Biome sub-sections ── */
-details.biome-section {
-  border-top: 1px solid #1a2040;
-}
-
-details.biome-section:first-of-type {
-  border-top: none;
-}
-
-summary.biome-summary {
-  background: #0d1b2a;
-  color: #8fb4d8;
-  padding: 6px 14px 6px 28px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
-  letter-spacing: 0.3px;
-}
-
-summary.biome-summary::-webkit-details-marker { display: none; }
-
-summary.biome-summary::before {
-  content: '◆ ';
-  font-size: 8px;
-  opacity: 0.5;
+  padding: 20px 0;
+  text-align: center;
 }
 
 /* ── Table ── */
 table {
-  width: 100%;
   border-collapse: collapse;
   background: #12172a;
 }
@@ -206,14 +202,21 @@ th {
   padding: 7px 10px;
   font-size: 12px;
   font-weight: 600;
-  color: #8090b0;
+  color: #a8b8d8;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 1px solid #0f3460;
 }
 
-th.exp-col { text-align: left; min-width: 220px; }
-th.sit-col { text-align: center; width: 90px; }
+th.row-header { text-align: left; min-width: 200px; }
+th.sit-col    { text-align: center; width: 90px; }
+th.exp-header {
+  text-align: center;
+  max-width: 120px;
+  white-space: normal;
+  line-height: 1.3;
+  font-size: 11px;
+}
 
 tbody tr { border-bottom: 1px solid #1a2040; }
 tbody tr:last-child { border-bottom: none; }
@@ -221,18 +224,24 @@ tbody tr:hover { background: #1a2040; }
 
 td { padding: 6px 10px; }
 
-td.exp-name {
+td.row-label {
   color: #c8d8f0;
   font-size: 13px;
+  white-space: nowrap;
 }
 
 td.sit-cell {
   text-align: center;
-  font-size: 15px;
-  color: #606060;
+  font-size: 13px;
+  color: #2a3050;
 }
 
+td.sit-cell::before { content: '–'; }
+
 td.sit-cell.done {
-  color: #4caf50;
+  background: #1a3320;
+  color: #5dbb60;
   font-weight: bold;
 }
+
+td.sit-cell.done::before { content: '✓'; }

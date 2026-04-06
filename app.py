@@ -1,3 +1,4 @@
+import json
 import os
 from flask import Flask, render_template, request
 from cfg_parser import CFGReader
@@ -6,13 +7,43 @@ from science_parser import ScienceParser, SITUATIONS, SITUATION_LABELS
 app = Flask(__name__)
 
 
+def bodies_to_json(bodies):
+    def _serialize(obj):
+        if isinstance(obj, set):
+            return sorted(list(obj))
+        if isinstance(obj, dict):
+            return {k: _serialize(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_serialize(i) for i in obj]
+        return obj
+
+    exp_registry = {}
+    for body in bodies:
+        for biome in body['biomes']:
+            for exp in biome['experiments']:
+                if exp['id'] not in exp_registry:
+                    exp_registry[exp['id']] = exp['title']
+
+    experiments = sorted(
+        [{'id': k, 'title': v} for k, v in exp_registry.items()],
+        key=lambda e: e['title'].lower()
+    )
+
+    return json.dumps({
+        'situations': SITUATIONS,
+        'situation_labels': SITUATION_LABELS,
+        'experiments': experiments,
+        'bodies': _serialize(bodies),
+    })
+
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     error = None
-    results = None
     game_title = None
     file_path = None
     bodies = []
+    science_json = 'null'
 
     if request.method == 'POST':
         file_path = request.form.get('file_path', '').strip()
@@ -31,6 +62,8 @@ def index():
                     bodies = parser.get_results()
                     if not bodies:
                         error = 'No science data found. Have you done any science in this save?'
+                    else:
+                        science_json = bodies_to_json(bodies)
             except Exception as e:
                 error = f'Parse error: {e}'
 
@@ -39,9 +72,7 @@ def index():
         error=error,
         game_title=game_title,
         file_path=file_path,
-        bodies=bodies,
-        situations=SITUATIONS,
-        situation_labels=SITUATION_LABELS,
+        science_json=science_json,
     )
 
 
