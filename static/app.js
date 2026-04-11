@@ -36,7 +36,8 @@ const state = {
   biome: '',
   expId: '',
   sitKey: '',
-  filter: 'all',  // 'all' | 'incomplete' | 'complete'
+  filter: 'all',      // 'all' | 'incomplete' | 'complete'
+  bodyFilter: 'ALL',  // planet filter for experiment/situation views
 };
 
 // ── Selector population ──────────────────────────────────────────────────────
@@ -157,7 +158,8 @@ function renderBiomeView() {
 function renderExperimentTable(expId) {
   const cols = KSH.situations.map(s => ({ label: KSH.situation_labels[s] }));
   let rows = [];
-  for (const body of KSH.bodies) {
+  const bodies = state.bodyFilter === 'ALL' ? KSH.bodies : KSH.bodies.filter(b => b.name === state.bodyFilter);
+  for (const body of bodies) {
     for (const biome of body.biomes) {
       const exp = biome.experiments.find(e => e.id === expId);
       const cells = KSH.situations.map(s =>
@@ -211,7 +213,8 @@ function renderSituationTable(sitKey) {
   if (expCols.length === 0) return null;
 
   let rows = [];
-  for (const body of KSH.bodies) {
+  const sitBodies = state.bodyFilter === 'ALL' ? KSH.bodies : KSH.bodies.filter(b => b.name === state.bodyFilter);
+  for (const body of sitBodies) {
     for (const biome of body.biomes) {
       const cells = expCols.map(expCol => {
         const e = biome.experiments.find(e => e.id === expCol.id);
@@ -271,6 +274,12 @@ function init() {
 
   populateBodySelector();
 
+  const bodyOptions = '<option value="ALL">(ALL planets)</option>' + KSH.bodies.map(b =>
+    `<option value="${escHtml(b.name)}">${escHtml(b.name)}</option>`
+  ).join('');
+  document.getElementById('sel-exp-body').innerHTML = bodyOptions;
+  document.getElementById('sel-sit-body').innerHTML = bodyOptions;
+
   const expSel = document.getElementById('sel-exp-id');
   expSel.innerHTML = '<option value="ALL">(ALL)</option>' + KSH.experiments.map(e =>
     `<option value="${escHtml(e.id)}">${escHtml(e.title)}</option>`
@@ -299,13 +308,23 @@ function init() {
     renderView();
   });
 
-  // Experiment view selector
+  // Experiment view selectors
+  document.getElementById('sel-exp-body').addEventListener('change', e => {
+    state.bodyFilter = e.target.value;
+    document.getElementById('sel-sit-body').value = e.target.value;
+    renderView();
+  });
   document.getElementById('sel-exp-id').addEventListener('change', e => {
     state.expId = e.target.value;
     renderView();
   });
 
-  // Situation view selector
+  // Situation view selectors
+  document.getElementById('sel-sit-body').addEventListener('change', e => {
+    state.bodyFilter = e.target.value;
+    document.getElementById('sel-exp-body').value = e.target.value;
+    renderView();
+  });
   document.getElementById('sel-sit-key').addEventListener('change', e => {
     state.sitKey = e.target.value;
     renderView();
