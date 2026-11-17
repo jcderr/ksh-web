@@ -24,6 +24,26 @@ SITUATION_LABELS = {
 
 GLOBAL_BIOME = '(Global)'
 
+# KSP stock body constraints. Unknown bodies (mods) default to all situations.
+_NO_ATMOSPHERE = frozenset({
+    'Mun', 'Minmus', 'Gilly', 'Moho', 'Ike', 'Dres',
+    'Vall', 'Tylo', 'Bop', 'Pol', 'Eeloo',
+})
+_NO_OCEAN = frozenset({
+    'Mun', 'Minmus', 'Gilly', 'Moho', 'Ike', 'Dres', 'Duna',
+    'Jool', 'Vall', 'Tylo', 'Bop', 'Pol', 'Eeloo', 'Kerbol',
+})
+_NO_SURFACE = frozenset({'Jool', 'Kerbol'})
+
+
+def body_available_situations(body_name):
+    """Return SITUATIONS filtered to those physically possible on body_name."""
+    return [s for s in SITUATIONS if not (
+        s in ('FlyingLow', 'FlyingHigh') and body_name in _NO_ATMOSPHERE or
+        s == 'SrfSplashed' and body_name in _NO_OCEAN or
+        s == 'SrfLanded' and body_name in _NO_SURFACE
+    )]
+
 
 def _trim_title(title):
     """Strip the situational suffix from an experiment title."""
@@ -77,7 +97,11 @@ class ScienceParser:
                     exps.append({'id': exp_id, 'title': title, 'situations': situations})
                 exps.sort(key=lambda e: e['title'].lower())
                 biomes.append({'name': biome_name, 'experiments': exps})
-            output.append({'name': body_name, 'biomes': biomes})
+            output.append({
+                'name': body_name,
+                'available_situations': body_available_situations(body_name),
+                'biomes': biomes,
+            })
         return output
 
     def _parse(self):

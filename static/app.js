@@ -7,6 +7,7 @@ const EXPERIMENT_MASK = {
   surfaceSample:      { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'N', FlyingHigh:'N', InSpaceLow:'N', InSpaceHigh:'N' },
   evaReport:          { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'B', FlyingHigh:'G', InSpaceLow:'B', InSpaceHigh:'G' },
   evaExperiments:     { SrfLanded:'G', SrfSplashed:'N', FlyingLow:'N', FlyingHigh:'N', InSpaceLow:'G', InSpaceHigh:'G' },
+  evaScience:         { SrfLanded:'G', SrfSplashed:'N', FlyingLow:'N', FlyingHigh:'N', InSpaceLow:'G', InSpaceHigh:'G' },
   asteroidSample:     { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'B', FlyingHigh:'G', InSpaceLow:'G', InSpaceHigh:'G' },
   cometSample:        { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'B', FlyingHigh:'G', InSpaceLow:'G', InSpaceHigh:'G' },
   crewReport:         { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'B', FlyingHigh:'G', InSpaceLow:'G', InSpaceHigh:'G' },
@@ -18,11 +19,38 @@ const EXPERIMENT_MASK = {
   seismicScan:        { SrfLanded:'B', SrfSplashed:'B', FlyingLow:'N', FlyingHigh:'N', InSpaceLow:'N', InSpaceHigh:'N' },
   atmosphereAnalysis: { SrfLanded:'B', SrfSplashed:'N', FlyingLow:'B', FlyingHigh:'B', InSpaceLow:'N', InSpaceHigh:'N' },
   infraredTelescope:  { SrfLanded:'N', SrfSplashed:'N', FlyingLow:'N', FlyingHigh:'B', InSpaceLow:'N', InSpaceHigh:'G' },
+  magnetometer:       { SrfLanded:'N', SrfSplashed:'N', FlyingLow:'N', FlyingHigh:'N', InSpaceLow:'G', InSpaceHigh:'G' },
 };
+
+// For experiments not in EXPERIMENT_MASK, infer G vs B from the collected data.
+// Cached per expId since KSH.bodies is immutable after load.
+const _inferredBiomeType = {};
+function _inferBiomeType(expId) {
+  if (expId in _inferredBiomeType) return _inferredBiomeType[expId];
+  let hasGlobal = false, hasBiome = false;
+  for (const body of KSH.bodies) {
+    for (const biome of body.biomes) {
+      if (biome.experiments.some(e => e.id === expId)) {
+        if (biome.name === '(Global)') hasGlobal = true;
+        else hasBiome = true;
+      }
+    }
+  }
+  _inferredBiomeType[expId] = (hasGlobal && !hasBiome) ? 'G' : 'B';
+  return _inferredBiomeType[expId];
+}
 
 // Returns true (done), false (not done), or null (N/A for this biome+situation combo)
 function cellState(expId, sitKey, biomeName, doneSituations) {
-  const mask = (EXPERIMENT_MASK[expId] ?? {})[sitKey] ?? 'B';
+  const expMask = EXPERIMENT_MASK[expId];
+  let mask;
+  if (expMask) {
+    mask = expMask[sitKey] ?? 'B';
+  } else {
+    // Unknown experiment: infer G vs B from data so it's never silently hidden.
+    // Can't infer N/A without game data, so unknown situations show as not-done.
+    mask = _inferBiomeType(expId);
+  }
   if (mask === 'N') return null;
   const isGlobal = biomeName === '(Global)';
   if (mask === 'G' && !isGlobal) return null;
@@ -119,12 +147,17 @@ function renderSection(heading, content) {
 
 // ── Renderers ────────────────────────────────────────────────────────────────
 
-function renderBiomeTable(biome) {
-  const cols = KSH.situations.map(s => ({ label: KSH.situation_labels[s] }));
-  let rows = biome.experiments.map(exp => ({
-    label: exp.title,
-    cells: KSH.situations.map(s => cellState(exp.id, s, biome.name, exp.situations)),
-  }));
+function renderBiomeTable(body, biome) {
+  const avail = body.available_situations || KSH.situations;
+  const cols = avail.map(s => ({ label: KSH.situation_labels[s] }));
+  // Use every known experiment, not just those recorded here, so missing ones show as empty rows.
+  let rows = KSH.experiments.map(expCol => {
+    const exp = biome.experiments.find(e => e.id === expCol.id);
+    return {
+      label: expCol.title,
+      cells: avail.map(s => cellState(expCol.id, s, biome.name, exp ? exp.situations : [])),
+    };
+  });
   rows = applyFilter(rows);
   if (rows.length === 0) return null;
   return buildTable(cols, rows, 'sit-col');
@@ -136,7 +169,7 @@ function renderBiomeView() {
 
   if (state.biome === 'ALL') {
     const sections = body.biomes.map(bm => {
-      const table = renderBiomeTable(bm);
+      const table = renderBiomeTable(body, bm);
       return table ? renderSection(bm.name, table) : null;
     }).filter(Boolean);
     if (sections.length) return sections.join('');
@@ -148,7 +181,7 @@ function renderBiomeView() {
   const biome = body.biomes.find(bm => bm.name === state.biome);
   if (!biome) return '<p class="empty-state">Select a biome above.</p>';
 
-  const table = renderBiomeTable(biome);
+  const table = renderBiomeTable(body, biome);
   if (table) return table;
   if (state.filter === 'incomplete') return '<p class="empty-state">No incomplete experiments found — all done here!</p>';
   if (state.filter === 'complete')   return '<p class="empty-state">No completed experiments found here yet.</p>';
@@ -160,10 +193,11 @@ function renderExperimentTable(expId) {
   let rows = [];
   const bodies = state.bodyFilter === 'ALL' ? KSH.bodies : KSH.bodies.filter(b => b.name === state.bodyFilter);
   for (const body of bodies) {
+    const avail = new Set(body.available_situations || KSH.situations);
     for (const biome of body.biomes) {
       const exp = biome.experiments.find(e => e.id === expId);
       const cells = KSH.situations.map(s =>
-        cellState(expId, s, biome.name, exp ? exp.situations : [])
+        avail.has(s) ? cellState(expId, s, biome.name, exp ? exp.situations : []) : null
       );
       if (cells.some(c => c !== null)) {
         rows.push({ label: `${body.name} / ${biome.name}`, cells });
@@ -203,6 +237,8 @@ function renderExperimentView() {
 function renderSituationTable(sitKey) {
   const expCols = KSH.experiments.filter(exp => {
     for (const body of KSH.bodies) {
+      const avail = new Set(body.available_situations || KSH.situations);
+      if (!avail.has(sitKey)) continue;
       for (const biome of body.biomes) {
         const e = biome.experiments.find(e => e.id === exp.id);
         if (e && e.situations.includes(sitKey)) return true;
@@ -215,6 +251,8 @@ function renderSituationTable(sitKey) {
   let rows = [];
   const sitBodies = state.bodyFilter === 'ALL' ? KSH.bodies : KSH.bodies.filter(b => b.name === state.bodyFilter);
   for (const body of sitBodies) {
+    const avail = new Set(body.available_situations || KSH.situations);
+    if (!avail.has(sitKey)) continue;
     for (const biome of body.biomes) {
       const cells = expCols.map(expCol => {
         const e = biome.experiments.find(e => e.id === expCol.id);
